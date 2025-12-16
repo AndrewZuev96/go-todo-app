@@ -4,21 +4,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"go_proj/internal/models"
+	"go_proj/internal/storage"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-var db *sql.DB
-
-type Task struct {
-	ID        int    `json:"id"`
-	Title     string `json:"title"`
-	Completed bool   `json:"completed"`
-}
+var store *storage.Service
 
 func task_handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -31,96 +28,65 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == http.MethodGet {
-		rows, err := db.Query("SELECT id, title, completed FROM tasks ORDER BY id")
+		tasks, err := store.GetAll()
 		if err != nil {
-			http.Error(w, "database query error", http.StatusInternalServerError)
+			http.Error(w, "Failed to get tasks, database query error", http.StatusInternalServerError)
 			return
 		}
-		defer rows.Close()
 
-		var task []Task
-
-		for rows.Next() {
-			var t Task
-			if err := rows.Scan(&t.ID, &t.Title, &t.Completed); err != nil {
-				continue
-			}
-			task = append(task, t)
-		}
-
-		json.NewEncoder(w).Encode(task)
+		json.NewEncoder(w).Encode(tasks)
 
 	} else if r.Method == http.MethodPost {
-		var newTask Task
+		var newTask models.Task
 		if err := json.NewDecoder(r.Body).Decode(&newTask); err != nil {
-			http.Error(w, "Invalid request payload", http.StatusBadRequest)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
-		query := "INSERT INTO tasks (title,completed) VALUES ($1,$2) RETURNING id"
-
-		err := db.QueryRow(query, newTask.Title, newTask.Completed).Scan(&newTask.ID)
+		createTask, err := store.Create(newTask)
 		if err != nil {
-			http.Error(w, "database save error", http.StatusInternalServerError)
-			fmt.Println(err)
-			return
+			http.Error(w, "Failed to create task", http.StatusInternalServerError)
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(newTask)
+		json.NewEncoder(w).Encode(createTask)
 
 	} else if r.Method == http.MethodDelete {
 
 		id_str := r.URL.Query().Get("id")
-		if id_str == "" {
-			http.Error(w, "Missing 'id' parameter", http.StatusBadRequest)
-			return
-		}
+		id, _ := strconv.Atoi(id_str)
 
-		result, err := db.Exec("DELETE FROM tasks WHERE id = $1", id_str)
+		err := store.Delete(id)
 		if err != nil {
-			http.Error(w, "Database delete error", http.StatusInternalServerError)
-			return
-		}
-
-		rowsAffected, _ := result.RowsAffected()
-		if rowsAffected == 0 {
-			http.Error(w, "Task not found", http.StatusNotFound)
-			return
+			if err == sql.ErrNoRows {
+				http.Error(w, "Task not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Failed to delete", http.StatusInternalServerError)
+			}
 		}
 
 		w.WriteHeader(http.StatusNoContent)
 
 	} else if r.Method == http.MethodPut {
 
-		var updated_task Task
+		var updated_task models.Task
 
 		if err := json.NewDecoder(r.Body).Decode(&updated_task); err != nil {
-			http.Error(w, "Invalid request payload", http.StatusBadRequest)
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 
-		if updated_task.ID == 0 {
-			http.Error(w, "task ID is required", http.StatusBadRequest)
-			return
-		}
-
-		res, err := db.Exec("UPDATE tasks SET title=$1, completed=$2 WHERE id=$3",
-			updated_task.Title, updated_task.Completed, updated_task.ID)
-
+		updatedTask, err := store.Update(updated_task)
 		if err != nil {
-			http.Error(w, "Database update error", http.StatusInternalServerError)
-			fmt.Println(err)
+			if err == sql.ErrNoRows {
+				http.Error(w, "Task not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "failed to update", http.StatusInternalServerError)
+			}
 			return
 		}
 
-		rowsAffected, _ := res.RowsAffected()
-		if rowsAffected == 0 {
-			http.Error(w, "Task not fount", http.StatusNotFound)
-			return
-		}
-
-		json.NewEncoder(w).Encode(updated_task)
+		json.NewEncoder(w).Encode(updatedTask)
 
 	} else {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -142,14 +108,15 @@ func main() {
 		server_port = ":8080"
 	}
 
+	
 	conn_str := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	var err error
+	//var err error
 	//connStr := "host=localhost port=5433 user=chsh password=sa12345 dbname=todo_db sslmode=disable" //todo_db=#
 	//connStr := "host=127.0.0.1 port=5432 user=chsh password=sa12345 dbname=todo_db sslmode=disable"
 	//connStr := "postgres://chsh:sa12345@localhost:5432/todo_db?sslmode=disable"
-	db, err = sql.Open("postgres", conn_str)
+	db,err:= sql.Open("postgres", conn_str)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,7 +124,7 @@ func main() {
 	if err = db.Ping(); err != nil {
 		log.Fatal("Could not connect to the database:", err)
 	}
-
+	store=storage.New(db)
 	fmt.Println("Successfully connected to the databse!")
 	fmt.Println("Server is running on port 8000...")
 	http.HandleFunc("/tasks", task_handler)
