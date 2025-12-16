@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
@@ -126,12 +128,28 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	fmt.Println("Hello world")
+	if err := godotenv.Load(); err != nil {
+		fmt.Println("no .env file found")
+	}
+
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASSWORD")
+	dbname := os.Getenv("DB_NAME")
+	server_port := os.Getenv("SERVER_PORT")
+	if server_port == "" {
+		server_port = ":8080"
+	}
+
+	conn_str := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
 	var err error
 	//connStr := "host=localhost port=5433 user=chsh password=sa12345 dbname=todo_db sslmode=disable" //todo_db=#
-	connStr := "host=127.0.0.1 port=5432 user=chsh password=sa12345 dbname=todo_db sslmode=disable"
+	//connStr := "host=127.0.0.1 port=5432 user=chsh password=sa12345 dbname=todo_db sslmode=disable"
 	//connStr := "postgres://chsh:sa12345@localhost:5432/todo_db?sslmode=disable"
-	db, err = sql.Open("postgres", connStr)
+	db, err = sql.Open("postgres", conn_str)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -143,5 +161,6 @@ func main() {
 	fmt.Println("Successfully connected to the databse!")
 	fmt.Println("Server is running on port 8000...")
 	http.HandleFunc("/tasks", task_handler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	log.Fatal(http.ListenAndServe(server_port, nil))
 }

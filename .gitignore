@@ -10,3 +10,4 @@ go_web
 
 # OS specific
 .DS_Store
+.env
