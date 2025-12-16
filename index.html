@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go To-Do App</title>
+    <style>
+        /* Немного стилей, чтобы не выглядело как в 90-х */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #00add8;
+        }
+
+        /* Цвет Go */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00add8;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #008cb0;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: #f4f4f4;
+            border-bottom: 1px solid #ddd;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: gray;
+        }
+
+        .delete-btn {
+            background: #ff4d4d;
+            margin-left: 10px;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>My Go To-Do List</h1>
+
+    <div class="input-group">
+        <input type="text" id="taskInput" placeholder="What needs to be done?">
+        <button onclick="addTask()">Add</button>
+    </div>
+
+    <ul id="taskList">
+        <!-- Сюда JavaScript будет добавлять задачи -->
+    </ul>
+
+    <script>
+        const API_URL = "http://localhost:8080/tasks";
+
+        // 1. Функция загрузки задач (GET)
+        async function loadTasks() {
+            const response = await fetch(API_URL); // Делаем запрос к Go
+            const tasks = await response.json(); // Превращаем ответ в массив объектов
+
+            const list = document.getElementById("taskList");
+            list.innerHTML = ""; // Очищаем список перед перерисовкой
+
+            // Бежим по задачам и создаем HTML элементы
+            tasks.forEach(task => {
+                const li = document.createElement("li");
+
+                // Если задача выполнена, добавляем класс для зачеркивания
+                if (task.completed) {
+                    li.classList.add("completed");
+                }
+
+                li.innerHTML = `
+                    <span onclick="toggleTask(${task.id}, '${task.title}', ${task.completed})" style="cursor: pointer;">
+                        ${task.title}
+                    </span>
+                    <button class="delete-btn" onclick="deleteTask(${task.id})">Del</button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        // 2. Функция добавления (POST)
+        async function addTask() {
+            const input = document.getElementById("taskInput");
+            const title = input.value;
+            if (!title) return;
+
+            await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: title, completed: false })
+            });
+
+            input.value = ""; // Очистить поле ввода
+            loadTasks(); // Обновить список
+        }
+
+        // 3. Функция удаления (DELETE)
+        async function deleteTask(id) {
+            await fetch(`${API_URL}?id=${id}`, {
+                method: "DELETE"
+            });
+            loadTasks();
+        }
+
+        // 4. Функция переключения статуса (PUT)
+        async function toggleTask(id, title, currentStatus) {
+            await fetch(API_URL, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: id,
+                    title: title,
+                    completed: !currentStatus // Меняем статус на противоположный
+                })
+            });
+            loadTasks();
+        }
+
+        // Загрузить задачи сразу при открытии страницы
+        loadTasks();
+    </script>
+</body>
+
+</html>

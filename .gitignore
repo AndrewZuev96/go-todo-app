@@ -1,0 +1,12 @@
+# Binaries
+# Имя твоего бинарника (если ты делал go build)
+main
+go_web
+*.exe
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
