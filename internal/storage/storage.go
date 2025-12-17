@@ -2,7 +2,9 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"go_proj/internal/models"
+	"time"
 )
 
 type Service struct {
@@ -75,4 +77,10 @@ func (s *Service) Delete(id int) error {
 		return sql.ErrNoRows
 	}
 	return nil
+}
+
+func SendNotification(taskTitle string) {
+	fmt.Printf("start sending email for task: '%s'...\n", taskTitle)
+	time.Sleep(5 * time.Second)
+	fmt.Printf("Email sent for task: '%s'!\n", taskTitle)
 }

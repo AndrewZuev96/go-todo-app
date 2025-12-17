@@ -27,7 +27,8 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if r.Method == http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
 		tasks, err := store.GetAll()
 		if err != nil {
 			http.Error(w, "Failed to get tasks, database query error", http.StatusInternalServerError)
@@ -36,7 +37,7 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 
 		json.NewEncoder(w).Encode(tasks)
 
-	} else if r.Method == http.MethodPost {
+	case http.MethodPost:
 		var newTask models.Task
 		if err := json.NewDecoder(r.Body).Decode(&newTask); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -48,10 +49,12 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to create task", http.StatusInternalServerError)
 		}
 
+		go storage.SendNotification(createTask.Title)
+
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(createTask)
 
-	} else if r.Method == http.MethodDelete {
+	case http.MethodDelete:
 
 		id_str := r.URL.Query().Get("id")
 		id, _ := strconv.Atoi(id_str)
@@ -67,7 +70,7 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusNoContent)
 
-	} else if r.Method == http.MethodPut {
+	case http.MethodPut:
 
 		var updated_task models.Task
 
@@ -88,7 +91,7 @@ func task_handler(w http.ResponseWriter, r *http.Request) {
 
 		json.NewEncoder(w).Encode(updatedTask)
 
-	} else {
+	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
@@ -108,7 +111,6 @@ func main() {
 	// 	server_port = "0.0.0.0:8080"
 	// }
 
-	
 	conn_str := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
@@ -116,7 +118,7 @@ func main() {
 	//connStr := "host=localhost port=5433 user=chsh password=sa12345 dbname=todo_db sslmode=disable" //todo_db=#
 	//connStr := "host=127.0.0.1 port=5432 user=chsh password=sa12345 dbname=todo_db sslmode=disable"
 	//connStr := "postgres://chsh:sa12345@localhost:5432/todo_db?sslmode=disable"
-	db,err:= sql.Open("postgres", conn_str)
+	db, err := sql.Open("postgres", conn_str)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -124,7 +126,7 @@ func main() {
 	if err = db.Ping(); err != nil {
 		log.Fatal("Could not connect to the database:", err)
 	}
-	store=storage.New(db)
+	store = storage.New(db)
 	fmt.Println("Successfully connected to the databse!")
 	fmt.Println("Server is running on port 8080...")
 	http.HandleFunc("/tasks", task_handler)
