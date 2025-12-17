@@ -36,27 +36,6 @@
     API Endpoint: http://localhost:8080/tasks
     Frontend: Просто откройте файл index.html в вашем браузере.
 
-📂 Структура проекта
-
-Проект следует принципам Clean Architecture:
-.
-├── internal
-│   ├── models       # Структуры данных (Data Models)
-│   └── storage      # Логика работы с БД (Repository Pattern)
-├── index.html       # Frontend клиент
-├── main.go          # Точка входа, HTTP Handlers, Config
-├── docker-compose.yml
-├── Dockerfile
-└── .env             # Переменные окружения (не в репозитории)
-
-📡 API Documentation
-
-Метод	URL	Описание	Тело запроса (JSON)
-GET     /tasks	Получить все задачи	-
-POST    /tasks	Создать задачу	{"title": "...", "completed": false}
-PUT	    /tasks	Обновить задачу	{"id": 1, "title": "...", "completed": true}
-DELETE	/tasks?id=1	Удалить задачу	
-
 👤 Автор
 
 Andrew Zuev
