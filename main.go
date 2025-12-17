@@ -103,10 +103,10 @@ func main() {
 	user := os.Getenv("DB_USER")
 	password := os.Getenv("DB_PASSWORD")
 	dbname := os.Getenv("DB_NAME")
-	server_port := os.Getenv("SERVER_PORT")
-	if server_port == "" {
-		server_port = ":8080"
-	}
+	// server_port := os.Getenv("SERVER_PORT")
+	// if server_port == "" {
+	// 	server_port = "0.0.0.0:8080"
+	// }
 
 	
 	conn_str := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -126,8 +126,8 @@ func main() {
 	}
 	store=storage.New(db)
 	fmt.Println("Successfully connected to the databse!")
-	fmt.Println("Server is running on port 8000...")
+	fmt.Println("Server is running on port 8080...")
 	http.HandleFunc("/tasks", task_handler)
 
-	log.Fatal(http.ListenAndServe(server_port, nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

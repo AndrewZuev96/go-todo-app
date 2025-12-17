@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:latest
+    command: postgres -c ssl=off
+    container_name: todo_db_container
+    environment:
+      - POSTGRES_USER=chsh
+      - POSTGRES_PASSWORD=sa12345
+      - POSTGRES_DB=todo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  app:
+    build: .
+    container_name: todo_app_container
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=chsh
+      - DB_PASSWORD=sa12345
+      - DB_NAME=todo_db
+
+volumes:
+  postgres_data:
